@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html>
+<body>
+    <div id="app"></div>
+</body>
+</html>
+<script src="yamila.js"></script>
+<script>
+
+    let state = {
+        message: 'Hola Yamila',
+        list: []
+    }
+
+    let mutators = {
+        setMessage(state, message) {
+            state.message = message
+        },
+        addItem(state, data) {
+            state.list.push(data)
+        },
+        removeItem(state, data) {
+            state.list = state.list.filter(item => {
+                return item.id != data
+            })
+        }
+    }
+
+    let actions = {
+        async addMessage(store, message) {
+            store.commit('setMessage', message)
+            return
+        },
+        async addItem(store) {
+            const idGenerated = await store.consume('createMessage', store.state.message)
+            store.commit('addItem', {
+                id: idGenerated,
+                message: store.state.message
+            })
+            return
+        },
+        async removeItem(store, data) {
+            store.commit('removeItem', data)
+            return
+        }
+    }
+
+    let services = {
+        createMessage(store, param) {
+            // http request here
+            return new Promise((resolve, reject) => {
+                resolve(new Date().getTime())
+            })
+        }
+    }
+
+    yamila.store.create({ state, actions, mutators, services })
+
+    const container = yamila.createComponent({
+        type: 'container',
+        update: function (newStore, oldStore) {
+            newStore.message != oldStore.message && this.updateChildren(newStore.message, oldStore.message) //this.setData(newStore.message)
+        },
+        childs: [
+            yamila.createComponent({
+                type: 'label',
+                update: function (newData, oldData) {
+                    newData != oldData && (this.innerHTML = newData)
+                }
+            }),
+            yamila.createComponent({
+                type: 'input',
+                update: function (newData, oldData) {
+                    newData != oldData && (this.value = newData)
+                },
+                handler: function (value) {
+                    yamila.store.dispatch('addMessage', value)
+                }
+            }),
+            yamila.createComponent({
+                type: 'button',
+                handler: function () {
+                    yamila.store.dispatch('addItem')
+                },
+                update: function (newData, oldData) {
+                    newData != oldData && (this.innerHTML = 'Enviar')
+                }
+            })
+        ]
+    })
+    yamila.dom.append(container)
+
+
+</script>
+<script>
+
+    const createListItem = () => (
+        yamila.createComponent({
+            type: 'container',
+            update: function (newData, oldData) {
+                if (newData != oldData) {
+                    this.updateChildren(newData, oldData)
+                    this.id = newData.id
+                }
+            },
+            childs: [
+                yamila.createComponent({
+                    type: 'label',
+                    update: function (newData, oldData) {
+                        newData != oldData && (this.innerHTML = newData.message)
+                    }
+                }),
+                yamila.createComponent({
+                    type: 'button',
+                    update: function (newData, oldData) {
+                        if (newData != oldData) {
+                            this.id = newData.id
+                            newData != oldData && (this.innerHTML = 'Eliminar')
+                        }
+                    },
+                    onClick: function () {
+                        yamila.store.dispatch('removeItem', this.id)
+                    },
+                })
+            ]
+        })
+    )
+
+    let view = yamila.createComponent({
+        type: 'view',
+        update: function (newStore, oldStore) {
+            this.show()
+            this.updateChildren(newStore, oldStore)
+        },
+        childs: [
+            yamila.createComponent({
+                type: 'list',
+                update: function (newStore, oldStore) {
+                    newStore.list != oldStore.list && this.updateChildren(newStore.list, oldStore.list)
+                },
+                child: () => (createListItem())
+            })
+        ]
+    })
+    yamila.dom.append(view)
+    yamila.start()
+</script>
